@@ -6,10 +6,12 @@ import matplotlib.pyplot as plt
 
 def main():
     path = "data/dorothea_clean.csv"
+    #path = "research/data/housing.data"
     table = pd.read_csv(path, header=None)
-    data = DataFrame.as_matrix(table.dropna(axis=0))
+    table_new = table.dropna(axis=0)
+    data = DataFrame.as_matrix(table_new)
     
-    my_som = SOM(10, 10, 2000)
+    my_som = SOM(20, 20, 5000)
     lattice = my_som.calc(data)
     u_matrix = create_u_matrix(lattice)
     plt.matshow(u_matrix.T, fignum=100, cmap='viridis')

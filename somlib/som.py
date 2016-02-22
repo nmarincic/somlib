@@ -1,15 +1,23 @@
 import numpy as np
 import math
+import pickle
+from progress.bar import ChargingBar
 
 class SOM():
     """SOM class"""
-    def __init__(self ,size_x, size_y, num_iterations):
+    def __init__(self, size_x, size_y, num_iterations, dist_dict=None):
         self.som_size_x = size_x
         self.som_size_y = size_y
         self.num_iterations = num_iterations
-        self.curr_iteration = 0
         self.start_learning_rate = 0.1
         self.initial_radius = (max(self.som_size_x, self.som_size_y)/2)**2
+        self.d_dict = dist_dict
+        self.quantization_error = 0
+        self.bar = ChargingBar('SOM Training', max=num_iterations)
+        
+    @classmethod
+    def precomputed(cls, precomputed_dist, num_iterations):
+        return cls(precomputed_dist[0][0], precomputed_dist[0][1], num_iterations, precomputed_dist[1])
     
     def calc(self, data):
         sx = self.som_size_x
@@ -18,32 +26,53 @@ class SOM():
         data_dim = data_scaled.shape[1]
         print ("Data dimensionality: %i" %data_dim)
         lattice = np.random.random((sx,sy, data_dim))
-        d_dict = distance_dict(sx, sy, self.initial_radius)
-        print ("Distance dictionary computed")
+        if not self.d_dict:
+            self.d_dict = distance_dict(sx, sy, self.initial_radius)
+            print ("Distance dictionary computed")
         
         # repeat
-        for i in range(self.num_iterations):
+        for curr_iteration in range(self.num_iterations):
             # get current radius
-            current_radius = get_current_radius(self.initial_radius, self.num_iterations, self.curr_iteration)
+            current_radius = get_current_radius(self.initial_radius, self.num_iterations, curr_iteration)
             # get current learning rate
-            current_learning_rate = get_current_learning_rate(self.start_learning_rate,self.num_iterations,self.curr_iteration)
+            current_learning_rate = get_current_learning_rate(self.start_learning_rate,self.num_iterations,curr_iteration)
             #random vector
             rand_input = np.random.randint(len(data_scaled))
             random_vector = data_scaled[rand_input]
             # get BMU
             BMU = calc_BMU(random_vector, lattice)
+            self.quantization_error = (BMU[0])
             # get all BMU's
             all_BMUs = get_all_BMU_indexes(BMU[1], sx, sy)
             # get all vectors within the current radius
-            filtered_distances = filter_distances(all_BMUs, d_dict, current_radius, sx, sy)
+            filtered_distances = filter_distances(all_BMUs, self.d_dict, current_radius, sx, sy)
             # scale all the vectors according to the gaussian decay
             distances_gaussian = gaussian_decay(current_radius, filtered_distances)
             #update lattice
             update_lattice(lattice, random_vector, distances_gaussian, current_learning_rate)
-            self.curr_iteration += 1
+            self.bar.next()
+            
+        print ("\nQuantization error: %s" %self.quantization_error)
+        self.bar.finish()
         return lattice
       
-      
+def precompute_distances(som_size_x, som_size_y):
+    initial_radius = (max(som_size_x, som_size_y)/2)**2
+    dct = distance_dict(som_size_x, som_size_y, initial_radius)
+    print ("Distance dictionary precomputed!")
+    return (som_size_x, som_size_y), dct
+
+def save_precomputed(path, d_dict):
+    with open(path, 'wb') as fp:
+        pickle.dump(d_dict, fp)
+        print ("Distance file saved at: %s" %path)
+
+def load_precomputed(path):
+    with open(path, 'rb') as fp:
+        d_dict = pickle.load(fp)
+        print ("Distance file: %s loaded" %path)
+        return d_dict
+          
 def filter_distances(all_BMUs, d_dict,radius, size_x, size_y):
     return set([val for sublist in [get_distances_from_dict(BMU, d_dict, size_x, size_y) 
         for BMU in all_BMUs] 
@@ -85,8 +114,8 @@ def get_list_from_dist_dict(index, distance_dict):
     return []
     
 def calc_BMU(random_vec, latt):
-    return min([(euclidean_dist_square(random_vec,latt[x][y]),(x, y)) 
-                for y in range(latt.shape[1]) 
+    return min([(euclidean_dist_square(random_vec,latt[x][y]),(x, y))
+                for y in range(latt.shape[1])
                 for x in range(latt.shape[0])])
                 
 def get_all_BMU_indexes(BMU, som_size_x, som_size_y):
@@ -114,7 +143,7 @@ def get_mirror_xy(lst, list_x, list_y):
         
 
 def distance_dict(xs, ys, radius):
-    matrix_dict = {}
+    dist_dict = {}
     # local minimum and maximum
     loc_min = min(-xs, -ys)
     loc_max = max(xs, ys)
@@ -125,10 +154,13 @@ def distance_dict(xs, ys, radius):
     # calculating coordinates within a lattice
     coords_lat = [(x, y) for y in range(ys) for x in range(xs)]
     for temp_coord in coords:
-        val_list = [(euc_sqr(x,temp_coord, sqrs),x) for x in coords_lat if euc_sqr(x,temp_coord, sqrs) < radius]
-        if val_list:
-            matrix_dict[temp_coord] = val_list
-    return matrix_dict
+        dist_list = []
+        for i in coords_lat:
+            dist = euc_sqr(i, temp_coord, sqrs)
+            if dist < radius:
+                dist_list.append((dist, i))
+        dist_dict[temp_coord] = dist_list
+    return dist_dict
 
 def get_distances_from_dict(index, distance_dict, size_x, size_y):
     if index[0]>= size_x:
