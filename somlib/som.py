@@ -1,7 +1,7 @@
 import numpy as np
 import math
 import pickle
-from progress.bar import ChargingBar
+import pyprind
 
 class SOM():
     """SOM class"""
@@ -12,8 +12,7 @@ class SOM():
         self.start_learning_rate = 0.1
         self.initial_radius = (max(self.som_size_x, self.som_size_y)/2)**2
         self.d_dict = dist_dict
-        self.quantization_error = 0
-        self.bar = ChargingBar('SOM Training', max=num_iterations)
+        self.quantization_error = []
         
     @classmethod
     def precomputed(cls, precomputed_dist, num_iterations):
@@ -26,9 +25,15 @@ class SOM():
         data_dim = data_scaled.shape[1]
         print ("Data dimensionality: %i" %data_dim)
         lattice = np.random.random((sx,sy, data_dim))
+        epoch = int(self.num_iterations/100)
+        epoch_error = []
+        
         if not self.d_dict:
             self.d_dict = distance_dict(sx, sy, self.initial_radius)
-            print ("Distance dictionary computed")
+            print ("Distance dictionary computed\n")
+        
+        # printing the progress
+        bar = pyprind.ProgBar(self.num_iterations, bar_char='█', width=50, title="Training SOM")
         
         # repeat
         for curr_iteration in range(self.num_iterations):
@@ -41,7 +46,14 @@ class SOM():
             random_vector = data_scaled[rand_input]
             # get BMU
             BMU = calc_BMU(random_vector, lattice)
-            self.quantization_error = (BMU[0])
+            # quantization error
+            cycle = curr_iteration%epoch
+            if cycle<epoch:
+                epoch_error.append(BMU[0])
+            if cycle==epoch-1:
+                self.quantization_error.append(sum(epoch_error)/epoch)
+                #print (sum(epoch_error)/epoch)
+                epoch_error = []
             # get all BMU's
             all_BMUs = get_all_BMU_indexes(BMU[1], sx, sy)
             # get all vectors within the current radius
@@ -50,10 +62,9 @@ class SOM():
             distances_gaussian = gaussian_decay(current_radius, filtered_distances)
             #update lattice
             update_lattice(lattice, random_vector, distances_gaussian, current_learning_rate)
-            self.bar.next()
+            bar.update()
             
-        print ("\nQuantization error: %s" %self.quantization_error)
-        self.bar.finish()
+        print ("\nQuantization error: %s" %self.quantization_error[-1])
         return lattice
       
 def precompute_distances(som_size_x, som_size_y):
@@ -151,9 +162,11 @@ def distance_dict(xs, ys, radius):
     sqrs = {x: x**2 for x in range(loc_min, loc_max)}
     # calculating all coordinates
     coords = [(x, y) for y in range(-ys, ys) for x in range(-xs, xs)]
+    bar = pyprind.ProgBar(len(coords), bar_char='█',title="Computing the distance dictionary")
     # calculating coordinates within a lattice
     coords_lat = [(x, y) for y in range(ys) for x in range(xs)]
     for temp_coord in coords:
+        bar.update()
         dist_list = []
         for i in coords_lat:
             dist = euc_sqr(i, temp_coord, sqrs)

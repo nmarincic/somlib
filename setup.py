@@ -23,7 +23,7 @@ setup(
     ],
     keywords='som self-organizing map library',
     packages=find_packages(exclude=['contrib', 'docs', 'tests']),
-    install_requires=['numpy','pandas','matplotlib', 'progress'],
+    install_requires=['numpy','pandas','matplotlib', 'pyprind'],
     entry_points={
         'console_scripts': [
             'somlib=somlib.__main__:main',
