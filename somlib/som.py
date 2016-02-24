@@ -3,6 +3,7 @@ import math
 import pickle
 import pyprind
 
+
 class SOM():
     """SOM class"""
     def __init__(self, size_x, size_y, num_iterations, dist_dict=None):
@@ -18,6 +19,7 @@ class SOM():
     def precomputed(cls, precomputed_dist, num_iterations):
         return cls(precomputed_dist[0][0], precomputed_dist[0][1], num_iterations, precomputed_dist[1])
     
+    #@profile
     def calc(self, data):
         sx = self.som_size_x
         sy = self.som_size_y
@@ -123,12 +125,29 @@ def get_list_from_dist_dict(index, distance_dict):
     if index in distance_dict:
         return distance_dict[index]
     return []
-    
-def calc_BMU(random_vec, latt):
+
+# time 950.000
+#@profile               
+def calc_BMU_old(random_vec, latt):
     return min([(euclidean_dist_square(random_vec,latt[x][y]),(x, y))
                 for y in range(latt.shape[1])
-                for x in range(latt.shape[0])])
-                
+                for x in range(latt.shape[0])])    
+# time 550.000
+#@profile     
+def calc_BMU(random_vec, latt):
+   # reshape flattens first two dimensions into one
+   diff = (random_vec-latt).reshape(-1, latt.shape[-1])
+   # dot product of distance between two vectors with itself
+   # gives us squared euclidean distance
+   lst = min([(dotme(val),index) for index, val in enumerate(diff)])
+   return lst[0], np.unravel_index(lst[1], (latt.shape[0],latt.shape[1]))      
+
+def coords_1d_to_2d(value, size_x):
+    return (value%size_x, value//size_x)
+
+def dotme(a):
+    return np.dot(a,a)
+                                        
 def get_all_BMU_indexes(BMU, som_size_x, som_size_y):
     BMU2, BMU3, BMU4 = list(BMU), list(BMU), list(BMU)
     if BMU[0] > som_size_x / 2:
@@ -152,7 +171,6 @@ def get_mirror_y(lst, list_y):
 def get_mirror_xy(lst, list_x, list_y):
     return [(i[0],((list_x-1)-i[1][0],(list_y-1)-i[1][1])) for i in lst]
         
-
 def distance_dict(xs, ys, radius):
     dist_dict = {}
     # local minimum and maximum
