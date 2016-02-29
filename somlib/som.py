@@ -3,7 +3,6 @@ import math
 import pickle
 import pyprind
 
-
 class SOM():
     """SOM class"""
     def __init__(self, size_x, size_y, num_iterations, dist_dict=None):
@@ -103,14 +102,10 @@ def scale_values(list):
     max_arr = np.max((list), axis=0)
     min_arr = np.min((list), axis=0)
     return (list - min_arr) / (max_arr - min_arr)
-
+    
 def euc_sqr(vec1,vec2, squares):
     return squares[vec1[0]]+squares[vec1[1]]+squares[vec2[0]]+squares[vec2[1]]-2*vec1[0]*vec2[0]-2*vec1[1]*vec2[1]
-    
-def euclidean_dist_square(x, y):
-    diff = x - y
-    return np.dot(diff, diff)
-        
+            
 def get_current_radius(max_radius, num_iterations, current_iteration):
     time_constant = num_iterations/math.log(max_radius)
     return max_radius * math.exp(-current_iteration/time_constant)
@@ -125,15 +120,7 @@ def get_list_from_dist_dict(index, distance_dict):
     if index in distance_dict:
         return distance_dict[index]
     return []
-
-# time 950.000
-#@profile               
-def calc_BMU_old(random_vec, latt):
-    return min([(euclidean_dist_square(random_vec,latt[x][y]),(x, y))
-                for y in range(latt.shape[1])
-                for x in range(latt.shape[0])])    
-# time 550.000
-#@profile     
+                                    
 def calc_BMU(random_vec, latt):
    # reshape flattens first two dimensions into one
    diff = (random_vec-latt).reshape(-1, latt.shape[-1])
@@ -141,6 +128,7 @@ def calc_BMU(random_vec, latt):
    # gives us squared euclidean distance
    lst = min([(dotme(val),index) for index, val in enumerate(diff)])
    return lst[0], np.unravel_index(lst[1], (latt.shape[0],latt.shape[1]))      
+
 
 def coords_1d_to_2d(value, size_x):
     return (value%size_x, value//size_x)
@@ -170,7 +158,8 @@ def get_mirror_y(lst, list_y):
     
 def get_mirror_xy(lst, list_x, list_y):
     return [(i[0],((list_x-1)-i[1][0],(list_y-1)-i[1][1])) for i in lst]
-        
+
+      
 def distance_dict(xs, ys, radius):
     dist_dict = {}
     # local minimum and maximum
