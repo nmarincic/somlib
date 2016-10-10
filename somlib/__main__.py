@@ -5,8 +5,8 @@ from pandas import Series, DataFrame
 import matplotlib.pyplot as plt
  
 def main():
-    #standard_som()
-    test()
+    standard_som()
+    #test()
 
 if __name__ == '__main__':
     main()

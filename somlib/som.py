@@ -90,7 +90,7 @@ def filter_distances(all_BMUs, d_dict,radius, size_x, size_y):
         for BMU in all_BMUs] 
         for val in sublist 
         if val[0]<radius])
-ls 
+
 def update_lattice(lat, rand_vec, dist_gauss, cur_learn_rate):
     for node in dist_gauss:
         index = node[1]
